@@ -52,6 +52,46 @@ var iAmBackHudLastDownscroll:Bool = false;
 var iAmBackHudLastScoreText:String = "";
 var iAmBackHudLastAccuracyText:String = "";
 var iAmBackHudLastMissesText:String = "";
+var defaultHudLayoutReady:Bool = false;
+var defaultHudLastWidth:Float = -1;
+var defaultHudLastDownscroll:Bool = false;
+var defaultHudLastSongId:String = "";
+var defaultHudLastStageId:String = "";
+
+var songSpecificHudSongs:Array<String> = [
+    "madeinchina",
+    "iamback",
+    "spotting",
+    "steamunlocked",
+    "flintstone",
+    "rumbeling",
+    "vashamorir",
+    "paracetamol",
+    "upsmecaigo",
+    "laplaya",
+    "unheard",
+    "nophonezone",
+    "poolparti",
+    "cucarachabob",
+    "daddatel"
+];
+
+var songSpecificHudStages:Array<String> = [
+    "basement",
+    "bobcave",
+    "void",
+    "poja",
+    "jefestein",
+    "island",
+    "girona",
+    "fysd",
+    "corruptedbottom",
+    "lostremains",
+    "poolparti",
+    "unheared",
+    "rentdue",
+    "volcano"
+];
 
 function normalizeHudSongName(value:String):String {
     if (value == null)
@@ -78,6 +118,23 @@ function isIAmBackSong():Bool {
     songId = normalizeHudSongName(songId);
 
     return songName == "iamback" || songId == "iamback";
+}
+
+function getCurrentHudSongId():String {
+    var songName = PlayState.SONG == null || PlayState.SONG.meta == null ? "" : PlayState.SONG.meta.name;
+    var songId = PlayState.instance == null ? "" : PlayState.instance.curSongID;
+    var normalizedId = normalizeHudSongName(songId);
+    return normalizedId == "" ? normalizeHudSongName(songName) : normalizedId;
+}
+
+function getCurrentHudStageId():String {
+    return normalizeHudSongName(PlayState.instance == null ? "" : PlayState.instance.curStage);
+}
+
+function usesSongSpecificHud():Bool {
+    var songId = getCurrentHudSongId();
+    var stageId = getCurrentHudStageId();
+    return songSpecificHudSongs.contains(songId) || songSpecificHudStages.contains(stageId);
 }
 
 function getMadeInChinaHudCamera():FlxCamera {
@@ -288,7 +345,17 @@ function layoutDefaultHudText() {
         layoutIAmBackHudText();
         return;
     }
+    if (usesSongSpecificHud())
+        return;
     if (healthBarBG == null)
+        return;
+
+    var downscroll:Bool = camHUD != null && camHUD.downscroll;
+    var songId:String = getCurrentHudSongId();
+    var stageId:String = getCurrentHudStageId();
+    var needsLayout:Bool = (!defaultHudLayoutReady || defaultHudLastWidth != FlxG.width || defaultHudLastDownscroll != downscroll || defaultHudLastSongId != songId || defaultHudLastStageId != stageId);
+
+    if (!needsLayout)
         return;
 
     var baseX:Float = healthBarBG.x + 50;
@@ -316,6 +383,12 @@ function layoutDefaultHudText() {
     for (txt in [accuracyTxt, missesTxt, scoreTxt])
         if (txt != null)
             txt.updateHitbox();
+
+    defaultHudLayoutReady = true;
+    defaultHudLastWidth = FlxG.width;
+    defaultHudLastDownscroll = downscroll;
+    defaultHudLastSongId = songId;
+    defaultHudLastStageId = stageId;
 }
 
 function create() {
@@ -327,10 +400,15 @@ function postCreate() {
     if (sonicMode) return;
     madeInChinaHudLayoutReady = false;
     iAmBackHudLayoutReady = false;
+    defaultHudLayoutReady = false;
     minDigitDisplay = -1;
 
-    healthBar.visible = true;
-    healthBarBG.antialiasing = true;
+    if (!usesSongSpecificHud()) {
+        healthBar.visible = true;
+        healthBarBG.visible = true;
+    }
+    if (healthBarBG != null)
+        healthBarBG.antialiasing = true;
     doIconBop = true;
 
     comboGroup.setPosition(FlxG.width / 2 - 57, 120);
